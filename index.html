@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HW III - Vega-Lite Visualizations</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0efeb;
+      --white: #ffffff;
+      --text: #1c1c1c;
+      --text-muted: #888;
+      --accent: #3a6df0;
+      --border: #e2e1dd;
+      --header-bg: #264653;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--header-bg);
+      padding: 18px 0;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: -0.2px;
+    }
+
+    header h1 span {
+      font-weight: 400;
+      color: rgba(255,255,255,0.55);
+      font-size: 14px;
+    }
+
+    nav {
+      background: var(--header-bg);
+      border-bottom: 3px solid #e9c46a;
+      display: flex;
+      justify-content: center;
+      gap: 0;
+    }
+
+    nav a {
+      color: rgba(255,255,255,0.55);
+      padding: 10px 16px;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: color 0.15s;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+
+    nav a:hover { color: rgba(255,255,255,0.9); }
+    nav a.active { color: #ffffff; border-bottom-color: #e9c46a; }
+
+    .accent-line { display: none; }
+
+    .page {
+      display: none;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 36px 24px 60px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .page.active { display: block; }
+
+    .page.dashboard { max-width: 1160px; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .chart-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .chart-card-header {
+      padding: 20px 24px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .chart-card-header h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+
+    .chart-card-header .chart-number {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-right: 6px;
+    }
+
+    .chart-card-header p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .chart-card-body {
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .interaction-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 500;
+      margin-top: 8px;
+    }
+
+    .interaction-hint svg {
+      width: 12px;
+      height: 12px;
+      fill: var(--accent);
+    }
+
+    /* ── Dashboard ── */
+    .dashboard-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .dashboard-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .dashboard-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+    }
+
+    .kpi-card .kpi-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .kpi-card .kpi-value {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.5px;
+    }
+
+    .kpi-card .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .dashboard-grid { display: grid; gap: 16px; }
+    .dashboard-row-2 { grid-template-columns: 1fr 1fr; }
+    .dashboard-row-1 { grid-template-columns: 1fr; }
+
+    .dash-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .dash-card-header {
+      padding: 14px 18px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dash-card-header h3 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .dash-dot { display: none; }
+
+    .dash-card-body {
+      padding: 16px 18px 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    @media print {
+      header, nav { display: none; }
+      .page { display: block !important; page-break-after: always; padding: 20px 10px; max-width: 100%; }
+      .chart-card, .dash-card, .kpi-card { border: 1px solid #ddd; }
+      body { background: #fff; }
+      .interaction-hint { display: none; }
+      .dashboard-kpis { grid-template-columns: repeat(4, 1fr); }
+      .dashboard-row-2 { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Assignment III </h1>
+  </header>
+  <nav>
+    <a class="active" onclick="showPage('donut', this)">Donut Chart</a>
+    <a onclick="showPage('stream', this)">Streamgraph</a>
+    <a onclick="showPage('trellis', this)">Trellis Histogram</a>
+    <a onclick="showPage('heatmap', this)">Heatmap</a>
+    <a onclick="showPage('trend', this)">Regional Trend</a>
+    <a onclick="showPage('multiview', this)">Dashboard</a>
+  </nav>
+  <div class="accent-line"></div>
+
+  <div id="donut" class="page active">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2><span class="chart-number">01</span>Donut Chart &mdash; Rep and Total</h2>
+        <p>Total sales revenue per sales representative. Click a slice to highlight that rep; click again to reset.</p>
+        <div class="interaction-hint">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-2h-2v2zm0-4h2V7h-2v6z"/></svg>
+          Click slice to highlight
+        </div>
+      </div>
+      <div class="chart-card-body"><div id="donut-vis"></div></div>
+    </div>
+  </div>
+
+  <div id="stream" class="page">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2><span class="chart-number">02</span>Streamgraph &mdash; Total over Time by Item</h2>
+        <p>How total sales varied over time for each item. Click a stream to highlight that item; click again to reset.</p>
+        <div class="interaction-hint">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-2h-2v2zm0-4h2V7h-2v6z"/></svg>
+          Click to highlight item
+        </div>
+      </div>
+      <div class="chart-card-body"><div id="stream-vis"></div></div>
+    </div>
+  </div>
+
+  <div id="trellis" class="page">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2><span class="chart-number">03</span>Trellis Histogram &mdash; Units by Item</h2>
+        <p>Distribution of units sold, faceted by item. The dashed red rule is the mean. Hover over bars for count details.</p>
+        <div class="interaction-hint">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-2h-2v2zm0-4h2V7h-2v6z"/></svg>
+          Hover bars for details
+        </div>
+      </div>
+      <div class="chart-card-body"><div id="trellis-vis"></div></div>
+    </div>
+  </div>
+
+  <div id="heatmap" class="page">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2><span class="chart-number">06</span>Heatmap &mdash; Revenue by Item &times; Region</h2>
+        <p>Total sales revenue for each item–region combination. Darker cells indicate higher revenue. Click a cell to isolate that combination; click again to reset.</p>
+        <div class="interaction-hint">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-2h-2v2zm0-4h2V7h-2v6z"/></svg>
+          Click a cell to highlight
+        </div>
+      </div>
+      <div class="chart-card-body"><div id="heatmap-vis"></div></div>
+    </div>
+  </div>
+
+  <div id="trend" class="page">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2><span class="chart-number">07</span>Regional Trend &mdash; Monthly Revenue by Region</h2>
+        <p>How each region's total revenue evolved month by month. Click a line or legend entry to focus on that region; click empty space to reset.</p>
+        <div class="interaction-hint">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-2h-2v2zm0-4h2V7h-2v6z"/></svg>
+          Click a line or legend to focus region
+        </div>
+      </div>
+      <div class="chart-card-body"><div id="trend-vis"></div></div>
+    </div>
+  </div>
+
+  <!-- Dashboard Multiview -->
+  <div id="multiview" class="page dashboard">
+    <h2 class="dashboard-title">Sales Dashboard &mdash; All Views</h2>
+    <p class="dashboard-subtitle">Office supply sales data overview with all five visualizations</p>
+
+    <div class="dashboard-kpis" id="kpi-row"></div>
+
+    <!-- Row 1: Donut + Heatmap side by side -->
+    <div class="dashboard-grid dashboard-row-2" style="margin-bottom:20px;">
+      <div class="dash-card">
+        <div class="dash-card-header"><h3><span class="dash-dot"></span>Sales by Representative</h3></div>
+        <div class="dash-card-body"><div id="dash-donut"></div></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-header"><h3><span class="dash-dot"></span>Revenue by Item &times; Region</h3></div>
+        <div class="dash-card-body"><div id="dash-heatmap"></div></div>
+      </div>
+    </div>
+
+    <!-- Row 2: Streamgraph full width -->
+    <div class="dashboard-grid dashboard-row-1" style="margin-bottom:20px;">
+      <div class="dash-card">
+        <div class="dash-card-header"><h3><span class="dash-dot"></span>Sales Trend over Time by Item</h3></div>
+        <div class="dash-card-body"><div id="dash-stream"></div></div>
+      </div>
+    </div>
+
+    <!-- Row 3: Trellis + Regional Trend side by side -->
+    <div class="dashboard-grid dashboard-row-2">
+      <div class="dash-card">
+        <div class="dash-card-header"><h3><span class="dash-dot"></span>Unit Distribution by Item</h3></div>
+        <div class="dash-card-body"><div id="dash-trellis"></div></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-header"><h3><span class="dash-dot"></span>Monthly Revenue by Region</h3></div>
+        <div class="dash-card-body"><div id="dash-trend"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showPage(id, el) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      el.classList.add('active');
+    }
+
+    async function loadAndRender() {
+      const response = await fetch("HW_III.xlsx");
+      const arrayBuffer = await response.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const sheet = workbook.Sheets["SalesOrders"];
+      const rawData = XLSX.utils.sheet_to_json(sheet);
+
+      const data = rawData.map(row => ({
+        OrderDate: new Date((row.OrderDate - 25569) * 86400 * 1000).toISOString().split("T")[0],
+        Region: row.Region,
+        Rep: row.Rep,
+        Item: row.Item,
+        Units: row.Units,
+        UnitCost: row["Unit Cost"],
+        Total: Math.round(row.Total * 100) / 100
+      }));
+
+      // KPIs
+      const totalRevenue = data.reduce((s, d) => s + d.Total, 0);
+      const totalUnits = data.reduce((s, d) => s + d.Units, 0);
+      const totalOrders = data.length;
+      const uniqueReps = [...new Set(data.map(d => d.Rep))].length;
+
+      document.getElementById('kpi-row').innerHTML = [
+        { label: "Total Revenue", value: "$" + totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}), sub: "All orders combined" },
+        { label: "Total Units Sold", value: totalUnits.toLocaleString(), sub: "Across all items" },
+        { label: "Total Orders", value: totalOrders, sub: "Jan 2021 – Dec 2022" },
+        { label: "Sales Reps", value: uniqueReps, sub: "Active representatives" }
+      ].map(k => `
+        <div class="kpi-card">
+          <div class="kpi-label">${k.label}</div>
+          <div class="kpi-value">${k.value}</div>
+          <div class="kpi-sub">${k.sub}</div>
+        </div>
+      `).join('');
+
+      const tableau10 = ["#4e79a7","#f28e2b","#e15759","#76b7b2","#59a14f","#edc948","#b07aa1","#ff9da7","#9c755f","#bab0ac"];
+
+      const embedOpts = {
+        actions: false,
+        renderer: "svg",
+        config: {
+          background: "transparent",
+          padding: 10,
+          font: "Inter",
+          title: { font: "Inter", fontSize: 0, color: "transparent" },
+          axis: {
+            labelFont: "Inter", labelFontSize: 11, labelColor: "#888",
+            titleFont: "Inter", titleFontSize: 12, titleFontWeight: 600, titleColor: "#1c1c1c",
+            gridColor: "#e8e6e1", gridDash: [3, 3], domainColor: "#e2e1dd", tickColor: "#e2e1dd"
+          },
+          legend: {
+            labelFont: "Inter", labelFontSize: 12, labelColor: "#555",
+            titleFont: "Inter", titleFontSize: 12, titleFontWeight: 600, titleColor: "#1c1c1c",
+            symbolSize: 100, orient: "right"
+          },
+          range: { category: tableau10 },
+          view: { stroke: null },
+          arc: { stroke: "#ffffff", strokeWidth: 2 },
+          area: { opacity: 0.85 },
+          bar: { cornerRadiusEnd: 2 },
+          point: { opacity: 0.85 }
+        }
+      };
+
+      const chartWidth = 520;
+      const dashSmall = 240;
+      const dashWide = 520;
+
+      // ── Individual Page Specs ──
+
+      const donutSpec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "data": {"values": data},
+        "transform": [
+          {"aggregate": [{"op": "sum", "field": "Total", "as": "TotalSales"}], "groupby": ["Rep"]}
+        ],
+        "params": [{"name": "repClick", "select": {"type": "point", "fields": ["Rep"], "toggle": true}}],
+        "mark": {"type": "arc", "innerRadius": 60, "outerRadius": 140},
+        "encoding": {
+          "theta": {"field": "TotalSales", "type": "quantitative"},
+          "color": {"field": "Rep", "type": "nominal", "title": "Representative", "scale": {"range": tableau10}},
+          "opacity": {"condition": {"param": "repClick", "value": 1}, "value": 0.3},
+          "tooltip": [
+            {"field": "Rep", "type": "nominal", "title": "Representative"},
+            {"field": "TotalSales", "type": "quantitative", "format": ",.2f", "title": "Total Sales ($)"}
+          ]
+        },
+        "width": 360, "height": 320
+      };
+
+      const streamSpec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "data": {"values": data},
+        "params": [{"name": "itemHover", "select": {"type": "point", "fields": ["Item"]}}],
+        "mark": {"type": "area", "interpolate": "monotone"},
+        "encoding": {
+          "x": {"field": "OrderDate", "type": "temporal", "title": "Order Date", "axis": {"format": "%b %Y", "labelAngle": -45}},
+          "y": {"field": "Total", "type": "quantitative", "stack": "center", "title": "Total ($)", "axis": {"grid": false}},
+          "color": {"field": "Item", "type": "nominal", "title": "Item", "scale": {"range": tableau10}},
+          "opacity": {"condition": {"param": "itemHover", "value": 1}, "value": 0.2},
+          "tooltip": [
+            {"field": "OrderDate", "type": "temporal", "title": "Date", "formatType": "time", "format": "%b %d, %Y"},
+            {"field": "Item", "type": "nominal"},
+            {"field": "Total", "type": "quantitative", "format": ",.2f", "title": "Total ($)"}
+          ]
+        },
+        "width": chartWidth, "height": 300
+      };
+
+      const trellisSpec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "data": {"values": data},
+        "columns": 3,
+        "facet": {"field": "Item", "type": "nominal", "title": null,
+          "header": {"labelFont": "Source Sans Pro", "labelFontSize": 13, "labelFontWeight": 600, "labelColor": "#1b2a4a"}
+        },
+        "spec": {
+          "width": 170, "height": 140,
+          "layer": [
+            {
+              "mark": {"type": "bar", "color": "#4e79a7", "cornerRadiusEnd": 2},
+              "encoding": {
+                "x": {"field": "Units", "type": "quantitative", "bin": {"maxbins": 8}, "title": "Units"},
+                "y": {"aggregate": "count", "type": "quantitative", "title": "Count"},
+                "tooltip": [
+                  {"field": "Units", "type": "quantitative", "bin": {"maxbins": 8}, "title": "Units Range"},
+                  {"aggregate": "count", "type": "quantitative", "title": "Count"}
+                ]
+              }
+            },
+            {
+              "mark": {"type": "rule", "color": "#e15759", "strokeWidth": 2.5, "strokeDash": [6, 4]},
+              "encoding": {"x": {"aggregate": "mean", "field": "Units", "type": "quantitative"}}
+            },
+            {
+              "mark": {"type": "text", "align": "left", "dx": 4, "dy": -6, "fontSize": 10, "fontWeight": 600, "color": "#e15759"},
+              "encoding": {
+                "x": {"aggregate": "mean", "field": "Units", "type": "quantitative"},
+                "y": {"value": 0},
+                "text": {"aggregate": "mean", "field": "Units", "type": "quantitative", "format": ".1f"}
+              }
+            }
+          ]
+        }
+      };
+
+      // ── Chart 4: Heatmap — Item × Region ──
+      const heatmapSpec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "data": {"values": data},
+        "params": [{"name": "cellClick", "select": {"type": "point", "fields": ["Item", "Region"]}}],
+        "transform": [
+          {"aggregate": [
+            {"op": "sum", "field": "Total", "as": "TotalSales"},
+            {"op": "sum", "field": "Units", "as": "TotalUnits"}
+          ], "groupby": ["Item", "Region"]}
+        ],
+        "mark": {"type": "rect", "cursor": "pointer", "stroke": "#ffffff", "strokeWidth": 2},
+        "encoding": {
+          "x": {"field": "Item", "type": "nominal", "title": "Item", "axis": {"labelAngle": -30}},
+          "y": {"field": "Region", "type": "nominal", "title": "Region"},
+          "color": {
+            "field": "TotalSales", "type": "quantitative", "title": "Total Sales ($)",
+            "scale": {"scheme": "blues"}, "legend": {"format": ",.0f"}
+          },
+          "opacity": {"condition": {"param": "cellClick", "value": 1}, "value": 0.25},
+          "tooltip": [
+            {"field": "Item", "type": "nominal", "title": "Item"},
+            {"field": "Region", "type": "nominal", "title": "Region"},
+            {"field": "TotalSales", "type": "quantitative", "format": ",.2f", "title": "Total Sales ($)"},
+            {"field": "TotalUnits", "type": "quantitative", "format": ",", "title": "Units Sold"}
+          ]
+        },
+        "width": chartWidth, "height": 300
+      };
+
+      // ── Chart 7: Regional Trend — Monthly Revenue by Region ──
+      const trendSpec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "data": {"values": data},
+        "transform": [
+          {"timeUnit": "yearmonth", "field": "OrderDate", "as": "Month"},
+          {"aggregate": [{"op": "sum", "field": "Total", "as": "MonthlyTotal"}], "groupby": ["Month", "Region"]}
+        ],
+        "params": [{"name": "regionFocus", "select": {"type": "point", "fields": ["Region"]}, "bind": "legend"}],
+        "mark": {"type": "line", "strokeWidth": 2.5, "point": {"filled": true, "size": 55}},
+        "encoding": {
+          "x": {
+            "field": "Month", "type": "temporal", "title": "Month",
+            "axis": {"format": "%b %Y", "labelAngle": -45}
+          },
+          "y": {
+            "field": "MonthlyTotal", "type": "quantitative", "title": "Monthly Revenue ($)",
+            "axis": {"format": ",.0f"}
+          },
+          "color": {
+            "field": "Region", "type": "nominal", "title": "Region",
+            "scale": {"range": ["#4e79a7", "#f28e2b", "#59a14f"]}
+          },
+          "opacity": {
+            "condition": {"param": "regionFocus", "value": 1},
+            "value": 0.1
+          },
+          "tooltip": [
+            {"field": "Month", "type": "temporal", "title": "Month", "format": "%B %Y"},
+            {"field": "Region", "type": "nominal", "title": "Region"},
+            {"field": "MonthlyTotal", "type": "quantitative", "format": ",.2f", "title": "Revenue ($)"}
+          ]
+        },
+        "width": chartWidth, "height": 320
+      };
+
+      // Helper: clone a spec with overridden width/height (and optional spec-level overrides for faceted charts)
+      function dashSize(spec, w, h) {
+        if (spec.facet) {
+          return {...spec, spec: {...spec.spec, width: Math.floor(w / 3) - 10, height: Math.floor(h * 0.6)}};
+        }
+        return {...spec, width: w, height: h};
+      }
+
+      // Render individual pages
+      vegaEmbed('#donut-vis', donutSpec, embedOpts);
+      vegaEmbed('#stream-vis', streamSpec, embedOpts);
+      vegaEmbed('#trellis-vis', trellisSpec, embedOpts);
+      vegaEmbed('#heatmap-vis', heatmapSpec, embedOpts);
+      vegaEmbed('#trend-vis', trendSpec, embedOpts);
+
+      // Render dashboard — reuse same specs, just resize
+      const dashOpts = {...embedOpts, renderer: "svg"};
+      vegaEmbed('#dash-donut',   dashSize(donutSpec,   dashSmall, 240), dashOpts);
+      vegaEmbed('#dash-heatmap', dashSize(heatmapSpec, dashSmall, 240), dashOpts);
+      vegaEmbed('#dash-stream',  dashSize(streamSpec,  dashWide,  250), dashOpts);
+      vegaEmbed('#dash-trellis', dashSize(trellisSpec, dashSmall, 200), dashOpts);
+      vegaEmbed('#dash-trend',   dashSize(trendSpec,   dashSmall, 240), dashOpts);
+    }
+
+    loadAndRender();
+  </script>
+</body>
+</html>
