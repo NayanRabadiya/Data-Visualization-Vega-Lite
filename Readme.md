@@ -1,1 +1,1 @@
-Url for Visulaization: 
+Url for Visulaization: https://nayanrabadiya.github.io/Data-Visualization-Vega-Lite/
